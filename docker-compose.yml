@@ -1,0 +1,76 @@
+version: '3.3'
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    logging:
+      driver: none
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    logging:
+      driver: none
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    healthcheck:
+      test: "/usr/bin/kafka-topics --list --zookeeper zookeeper:2181"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # This "container" is a workaround to pre-create topics
+  kafka-setup:
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka-setup
+    depends_on:
+      - kafka
+    command: "bash -c 'echo Waiting for Kafka to be ready... && \
+                       cub kafka-ready -b kafka:9092 1 20 && \
+                       kafka-topics --create --if-not-exists --zookeeper zookeeper:2181 --partitions 3 --replication-factor 1 --topic events && \
+                       echo ready... '"
+    environment:
+      # The following settings are listed here only to satisfy the image's requirements.
+      # We override the image's `command` anyways, hence this container will not start a broker.
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
+
+  clickhouse:
+    image: 'yandex/clickhouse-server'
+    volumes:
+      - ./docker-entrypoint-initdb.d/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    ports:
+      - '9000:9000'
+      - '8123:8123'
+    depends_on:
+      - kafka
+      - kafka-setup
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    ports:
+      - "9005:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - kafka
+      - kafka-setup
+
+  clickhouse-client:
+    build: clickhouse-client
+    depends_on:
+      - kafka
+      - kafka-setup
+      - clickhouse
+    ports:
+      - 8090:8090

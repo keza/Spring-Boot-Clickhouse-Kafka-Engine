@@ -1,0 +1,6 @@
+server:
+  port: 8090
+
+clickhouse:
+  uri: http://clickhouse:8123
+  jdbc: jdbc:clickhouse://clickhouse:9000
