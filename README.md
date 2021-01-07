@@ -121,3 +121,17 @@ CREATE MATERIALIZED VIEW events_count_mv
     FROM events
     GROUP BY (type, post_id);
 ```
+
+### References
+
+https://programmer.help/blogs/how-to-choose-clickhouse-table-engine.html
+
+https://altinity.com/blog/clickhouse-materialized-views-illuminated-part-1
+
+https://altinity.com/blog/clickhouse-kafka-engine-faq
+
+https://altinity.com/blog/2020/5/21/clickhouse-kafka-engine-tutorial
+
+https://github.com/housepower/ClickHouse-Native-JDBC
+
+https://clickhouse.tech/docs/en/engines/table-engines/integrations/kafka/
